@@ -18,10 +18,8 @@ from sklearn.metrics import (
     average_precision_score
 )
 
-
 def compute_rmse(x, x_recon):
     return np.sqrt(np.mean((x - x_recon) ** 2, axis=1))
-
 
 def plot_roc(y_true, scores, output_path):
     fpr, tpr, thresholds = roc_curve(y_true, scores)
@@ -42,7 +40,6 @@ def plot_roc(y_true, scores, output_path):
     plt.close()
 
     return roc_auc, optimal_threshold, fpr[optimal_idx], tpr[optimal_idx]
-
 
 def plot_confusion_matrix(cm, output_path):
     plt.figure()
@@ -97,6 +94,55 @@ def plot_custom_confusion_matrix(cm_custom, true_labels, pred_labels, output_pat
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
     plt.close()
 
+def compute_rmse_stats_by_subclass(rmse_scores, y_test_original):
+    results = {}
+
+    print("\nRMSE by true subclass:")
+
+    for label in ["NonDoH", "Benign", "Malicious"]:
+        mask = y_test_original == label
+        scores = rmse_scores[mask]
+
+        stats = {
+            "count": int(len(scores)),
+            "mean": float(np.mean(scores)),
+            "median": float(np.median(scores)),
+            "std": float(np.std(scores)),
+            "p90": float(np.percentile(scores, 90)),
+            "p95": float(np.percentile(scores, 95)),
+            "p99": float(np.percentile(scores, 99)),
+        }
+
+        results[label] = stats
+
+        print(f"\n{label}")
+        for k, v in stats.items():
+            print(f"  {k:6s}: {v:.6f}" if isinstance(v, float) else f"  {k:6s}: {v}")
+
+    return results
+
+def plot_rmse_by_subclass(rmse_scores, y_test_original, output_path):
+    plt.figure(figsize=(8, 5))
+
+    for label in ["NonDoH", "Benign", "Malicious"]:
+        mask = y_test_original == label
+
+        plt.hist(
+            rmse_scores[mask],
+            bins=100,
+            alpha=0.5,
+            density=True,
+            label=label
+        )
+
+    plt.xlabel("Reconstruction RMSE")
+    plt.ylabel("Density")
+    plt.title("RMSE Distribution by True Subclass")
+    plt.legend()
+    plt.grid(True)
+
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+    plt.close()
 
 def plot_precision_recall(y_true, scores, output_path):
     precision, recall, _ = precision_recall_curve(y_true, scores)
@@ -140,10 +186,22 @@ def main():
 
     rmse_scores = compute_rmse(X_test, X_test_recon)
 
+    rmse_stats = compute_rmse_stats_by_subclass(
+        rmse_scores,
+        y_test_original
+    )
+
     roc_path = os.path.join(args.experiment_dir, "roc_curve.png")
     cm_path = os.path.join(args.experiment_dir, "confusion_matrix.png")
     custom_cm_path = os.path.join(args.experiment_dir, "custom_confusion_matrix.png")
     pr_path = os.path.join(args.experiment_dir, "precision_recall_curve.png")
+    rmse_plot_path = os.path.join(args.experiment_dir, "rmse_by_subclass.png")
+
+    plot_rmse_by_subclass(
+        rmse_scores,
+        y_test_original,
+        rmse_plot_path
+    )
 
     roc_auc, threshold, best_fpr, best_tpr = plot_roc(
         y_test,

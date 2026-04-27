@@ -8,3 +8,6 @@ venv/
 *.pcap
 *.pyc
 .idea
+.DS_Store
+new_logs/
+results/

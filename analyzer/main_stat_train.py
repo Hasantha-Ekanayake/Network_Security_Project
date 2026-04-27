@@ -8,25 +8,25 @@ import tensorflow as tf
 
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, Dense, Dropout
-from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger
+from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, ReduceLROnPlateau
 
 from dataset_csv import load_dataset
 
 def create_autoencoder(input_dim, latent_dim=4, dropout=0.1):
     input_data = Input(shape=(input_dim,), name="encoder_input")
 
-    x = Dense(32, activation="relu", name="encoder_1")(input_data)
+    x = Dense(latent_dim*8, activation="relu", name="encoder_1")(input_data)
     x = Dropout(dropout)(x)
-    x = Dense(16, activation="relu", name="encoder_2")(x)
+    x = Dense(latent_dim*4, activation="relu", name="encoder_2")(x)
     x = Dropout(dropout)(x)
-    x = Dense(8, activation="relu", name="encoder_3")(x)
+    x = Dense(latent_dim*2, activation="relu", name="encoder_3")(x)
 
     latent = Dense(latent_dim, activation="linear", name="latent_encoding")(x)
 
-    x = Dense(8, activation="relu", name="decoder_1")(latent)
-    x = Dense(16, activation="relu", name="decoder_2")(x)
+    x = Dense(latent_dim*2, activation="relu", name="decoder_1")(latent)
+    x = Dense(latent_dim*4, activation="relu", name="decoder_2")(x)
     x = Dropout(dropout)(x)
-    x = Dense(32, activation="relu", name="decoder_3")(x)
+    x = Dense(latent_dim*8, activation="relu", name="decoder_3")(x)
     x = Dropout(dropout)(x)
 
     output = Dense(input_dim, activation="linear", name="reconstructed_data")(x)
@@ -102,10 +102,18 @@ def main():
             save_weights_only=False,
             verbose=1
         ),
+        ReduceLROnPlateau(
+            monitor="val_loss",
+            factor=0.5,
+            patience=5,
+            min_lr=1e-6,
+            verbose=1
+        ),
         EarlyStopping(
             monitor="val_loss",
-            patience=10,
-            restore_best_weights=False
+            patience=20,
+            min_delta=1e-5,
+            restore_best_weights=True
         ),
         CSVLogger(log_path)
     ]

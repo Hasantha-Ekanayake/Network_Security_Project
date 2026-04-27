@@ -55,8 +55,12 @@ def load_three_csv_files(nondoh_path, benign_path, malicious_path):
 
     return df
 
-
-def clean_numeric_features(df, feature_cols=STAT_FEATURES_28):
+def clean_numeric_features(
+    df,
+    feature_cols=STAT_FEATURES_28,
+    log_transform=True,
+    clip_quantile=0.99,
+):
     df = df.copy()
 
     for col in feature_cols:
@@ -65,8 +69,16 @@ def clean_numeric_features(df, feature_cols=STAT_FEATURES_28):
     df = df.replace([np.inf, -np.inf], np.nan)
     df = df.dropna(subset=feature_cols)
 
-    return df
+    if log_transform:
+        # These statistical features are expected to be nonnegative after clipping.
+        df[feature_cols] = df[feature_cols].clip(lower=0)
+        df[feature_cols] = np.log1p(df[feature_cols])
 
+    if clip_quantile is not None:
+        upper_bounds = df[feature_cols].quantile(clip_quantile)
+        df[feature_cols] = df[feature_cols].clip(upper=upper_bounds, axis=1)
+
+    return df
 
 def create_autoencoder_splits(
     df,
@@ -148,10 +160,21 @@ def scale_splits(data):
     return data
 
 
-def load_dataset(nondoh_path, benign_path, malicious_path, random_state=42):
+def load_dataset(
+    nondoh_path,
+    benign_path,
+    malicious_path,
+    random_state=42,
+    log_transform=True,
+    clip_quantile=0.99,
+):
     df = load_three_csv_files(nondoh_path, benign_path, malicious_path)
 
-    df = clean_numeric_features(df)
+    df = clean_numeric_features(
+        df,
+        log_transform=log_transform,
+        clip_quantile=clip_quantile,
+    )
 
     data = create_autoencoder_splits(
         df=df,

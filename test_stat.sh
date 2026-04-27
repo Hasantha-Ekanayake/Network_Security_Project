@@ -27,7 +27,7 @@ mkdir -p results/stat_ae_test/run_${SLURM_JOB_ID}
 export PYTHONPATH=.
 
 # Change this to the training run directory you want to test
-EXPERIMENT_DIR="results/stat_ae_train/run_12255884"
+EXPERIMENT_DIR="results/stat_ae_train/run_12257245"
 
 python -c "import tensorflow as tf; print('TensorFlow:', tf.__version__); print('GPUs:', tf.config.list_physical_devices('GPU'))"
 
