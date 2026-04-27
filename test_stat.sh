@@ -33,7 +33,8 @@ python -c "import tensorflow as tf; print('TensorFlow:', tf.__version__); print(
 
 python analyzer/main_stat_test.py \
     --experiment_dir ${EXPERIMENT_DIR} \
-    --model_name best_epoch_model.keras
+    --model_name best_epoch_model.keras \
+    --batch_size 64
 
 echo "Testing done" &&
 exit

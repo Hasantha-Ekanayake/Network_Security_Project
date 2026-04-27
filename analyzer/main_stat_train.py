@@ -53,6 +53,13 @@ def main():
     parser.add_argument("--latent_dim", type=int, default=4)
     parser.add_argument("--random_state", type=int, default=42)
 
+    parser.add_argument(
+        "--clean_labels",
+        nargs="+",
+        default=["NonDoH", "Benign"],
+        help="Labels to treat as clean (e.g., Benign NonDoH)"
+    )
+
     args = parser.parse_args()
 
     os.makedirs(args.output_dir, exist_ok=True)
@@ -64,7 +71,8 @@ def main():
         nondoh_path=args.nondoh,
         benign_path=args.benign,
         malicious_path=args.malicious,
-        random_state=args.random_state
+        random_state=args.random_state,
+        clean_labels=tuple(args.clean_labels),
     )
 
     split_path = os.path.join(args.output_dir, "data_split.pkl")

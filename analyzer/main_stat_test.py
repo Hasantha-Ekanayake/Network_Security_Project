@@ -7,7 +7,6 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
-from matplotlib.colors import LogNorm
 
 from sklearn.metrics import (
     roc_curve,
@@ -42,8 +41,12 @@ def plot_roc(y_true, scores, output_path):
     return roc_auc, optimal_threshold, fpr[optimal_idx], tpr[optimal_idx]
 
 def plot_confusion_matrix(cm, output_path):
-    plt.figure()
-    plt.imshow(cm, norm=LogNorm())
+    row_sums = cm.sum(axis=1, keepdims=True)
+    cm_norm = cm / row_sums
+
+    plt.figure(figsize=(6, 5))
+    plt.imshow(cm_norm, vmin=0, vmax=1, cmap="Blues")
+
     plt.title("Confusion Matrix")
     plt.xlabel("Predicted Label")
     plt.ylabel("True Label")
@@ -52,14 +55,25 @@ def plot_confusion_matrix(cm, output_path):
 
     for i in range(cm.shape[0]):
         for j in range(cm.shape[1]):
-            plt.text(j, i, str(cm[i, j]), ha="center", va="center")
+            count = cm[i, j]
+            pct = cm_norm[i, j] * 100
+            color = "white" if cm_norm[i, j] > 0.5 else "black"
 
-    plt.colorbar()
+            plt.text(
+                j,
+                i,
+                f"{count}\n({pct:.1f}%)",
+                ha="center",
+                va="center",
+                color=color
+            )
+
+    plt.colorbar(label="Row-normalized percentage")
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
     plt.close()
 
 def build_custom_confusion_matrix(y_test_original, y_pred):
-    true_labels = ["NonDoH", "Benign", "Malicious"]
+    true_labels = list(dict.fromkeys(y_test_original))
     pred_labels = ["Clean", "Malicious"]
 
     cm_custom = np.zeros((len(true_labels), len(pred_labels)), dtype=int)
@@ -76,8 +90,11 @@ def build_custom_confusion_matrix(y_test_original, y_pred):
     return cm_custom, true_labels, pred_labels
 
 def plot_custom_confusion_matrix(cm_custom, true_labels, pred_labels, output_path):
+    row_sums = cm_custom.sum(axis=1, keepdims=True)
+    cm_norm = cm_custom / row_sums
+
     plt.figure(figsize=(6, 5))
-    plt.imshow(cm_custom, norm=LogNorm())
+    plt.imshow(cm_norm, vmin=0, vmax=1, cmap="Blues")
 
     plt.title("Custom Confusion Matrix")
     plt.xlabel("Predicted Label")
@@ -88,9 +105,20 @@ def plot_custom_confusion_matrix(cm_custom, true_labels, pred_labels, output_pat
 
     for i in range(cm_custom.shape[0]):
         for j in range(cm_custom.shape[1]):
-            plt.text(j, i, str(cm_custom[i, j]), ha="center", va="center")
+            count = cm_custom[i, j]
+            pct = cm_norm[i, j] * 100
+            color = "white" if cm_norm[i, j] > 0.5 else "black"
 
-    plt.colorbar()
+            plt.text(
+                j,
+                i,
+                f"{count}\n({pct:.1f}%)",
+                ha="center",
+                va="center",
+                color=color
+            )
+
+    plt.colorbar(label="Row-normalized percentage")
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
     plt.close()
 
@@ -99,7 +127,7 @@ def compute_rmse_stats_by_subclass(rmse_scores, y_test_original):
 
     print("\nRMSE by true subclass:")
 
-    for label in ["NonDoH", "Benign", "Malicious"]:
+    for label in sorted(set(y_test_original)):
         mask = y_test_original == label
         scores = rmse_scores[mask]
 
@@ -124,7 +152,7 @@ def compute_rmse_stats_by_subclass(rmse_scores, y_test_original):
 def plot_rmse_by_subclass(rmse_scores, y_test_original, output_path):
     plt.figure(figsize=(8, 5))
 
-    for label in ["NonDoH", "Benign", "Malicious"]:
+    for label in sorted(set(y_test_original)):
         mask = y_test_original == label
 
         plt.hist(
@@ -166,6 +194,12 @@ def main():
 
     parser.add_argument("--experiment_dir", default="ae_experiment")
     parser.add_argument("--model_name", default="best_epoch_model.keras")
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=512,
+        help="Batch size for inference"
+    )
 
     args = parser.parse_args()
 
@@ -182,7 +216,7 @@ def main():
 
     y_test_original = data["y_test_original"]
 
-    X_test_recon = model.predict(X_test, batch_size=512, verbose=1)
+    X_test_recon = model.predict(X_test, batch_size=args.batch_size, verbose=1)
 
     rmse_scores = compute_rmse(X_test, X_test_recon)
 

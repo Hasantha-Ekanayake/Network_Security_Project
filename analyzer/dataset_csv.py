@@ -1,4 +1,4 @@
-# doh_stat_loader.py
+# dataset_csv.py
 
 import numpy as np
 import pandas as pd
@@ -96,9 +96,6 @@ def create_autoencoder_splits(
     X_clean = clean_df[feature_cols]
     y_clean = clean_df[label_col]
 
-    X_anomaly = anomaly_df[feature_cols]
-    y_anomaly = anomaly_df[label_col]
-
     temp_size = val_size_clean + test_size_clean
 
     X_train, X_temp, y_train_orig, y_temp_orig = train_test_split(
@@ -119,8 +116,20 @@ def create_autoencoder_splits(
         stratify=y_temp_orig,
     )
 
-    X_test = pd.concat([X_clean_test, X_anomaly], axis=0)
-    y_test_orig = pd.concat([y_clean_test_orig, y_anomaly], axis=0)
+    # Match malicious test count to benign test count
+    num_malicious_test = len(X_clean_test)
+
+    anomaly_test_df = anomaly_df.sample(
+        n=num_malicious_test,
+        random_state=random_state,
+        replace=False,
+    )
+
+    X_anomaly_test = anomaly_test_df[feature_cols]
+    y_anomaly_test = anomaly_test_df[label_col]
+
+    X_test = pd.concat([X_clean_test, X_anomaly_test], axis=0)
+    y_test_orig = pd.concat([y_clean_test_orig, y_anomaly_test], axis=0)
 
     y_train = np.zeros(len(X_train), dtype=int)
     y_val = np.zeros(len(X_val), dtype=int)
@@ -167,6 +176,7 @@ def load_dataset(
     random_state=42,
     log_transform=True,
     clip_quantile=0.99,
+    clean_labels=("NonDoH", "Benign"),
 ):
     df = load_three_csv_files(nondoh_path, benign_path, malicious_path)
 
@@ -179,6 +189,7 @@ def load_dataset(
     data = create_autoencoder_splits(
         df=df,
         random_state=random_state,
+        clean_labels=clean_labels,
     )
 
     data = scale_splits(data)
