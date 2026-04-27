@@ -13,11 +13,11 @@
 #SBATCH --ntasks=1
 #SBATCH --account="hplp"
 
-set -e
-
 module purge
 module load miniforge
 source /home/bue6zr/.bashrc
+
+set -exo pipefail
 
 echo "Running on node: $HOSTNAME"
 echo "Job ID: $SLURM_JOB_ID"

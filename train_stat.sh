@@ -33,11 +33,12 @@ python analyzer/main_stat_train.py \
     --benign ../dataset/CSVs/l2-benign.csv \
     --malicious ../dataset/CSVs/l2-malicious.csv \
     --output_dir results/stat_ae_train/run_${SLURM_JOB_ID} \
-    --clean_labels Benign \
+    --clean_labels NonDoH Benign \
     --epochs 200 \
     --batch_size 64 \
     --latent_dim 8 \
-    --random_state 42
+    --random_state 42 \
+    --nondoh_ratio 1.0
 
 echo "Training done" &&
 exit

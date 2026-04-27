@@ -60,6 +60,13 @@ def main():
         help="Labels to treat as clean (e.g., Benign NonDoH)"
     )
 
+    parser.add_argument(
+        "--nondoh_ratio",
+        type=float,
+        default=None,
+        help="Limit NonDoH to ratio * Benign (e.g., 1.0 = equal size)"
+    )
+
     args = parser.parse_args()
 
     os.makedirs(args.output_dir, exist_ok=True)
@@ -73,6 +80,7 @@ def main():
         malicious_path=args.malicious,
         random_state=args.random_state,
         clean_labels=tuple(args.clean_labels),
+        nondoh_ratio=args.nondoh_ratio
     )
 
     split_path = os.path.join(args.output_dir, "data_split.pkl")

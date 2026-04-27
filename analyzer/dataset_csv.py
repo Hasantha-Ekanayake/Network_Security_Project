@@ -42,7 +42,13 @@ STAT_FEATURES_28 = [
 ]
 
 
-def load_three_csv_files(nondoh_path, benign_path, malicious_path):
+def load_three_csv_files(
+    nondoh_path,
+    benign_path,
+    malicious_path,
+    nondoh_ratio=None,
+    random_state=42
+):
     nondoh_df = pd.read_csv(nondoh_path)
     benign_df = pd.read_csv(benign_path)
     malicious_df = pd.read_csv(malicious_path)
@@ -50,6 +56,15 @@ def load_three_csv_files(nondoh_path, benign_path, malicious_path):
     nondoh_df["Label"] = "NonDoH"
     benign_df["Label"] = "Benign"
     malicious_df["Label"] = "Malicious"
+
+    if nondoh_ratio is not None:
+        max_nondoh = int(nondoh_ratio * len(benign_df))
+
+        if len(nondoh_df) > max_nondoh:
+            nondoh_df = nondoh_df.sample(
+                n=max_nondoh,
+                random_state=random_state
+            )
 
     df = pd.concat([nondoh_df, benign_df, malicious_df], ignore_index=True)
 
@@ -177,8 +192,15 @@ def load_dataset(
     log_transform=True,
     clip_quantile=0.99,
     clean_labels=("NonDoH", "Benign"),
+    nondoh_ratio=None
 ):
-    df = load_three_csv_files(nondoh_path, benign_path, malicious_path)
+    df = load_three_csv_files(
+        nondoh_path,
+        benign_path,
+        malicious_path,
+        nondoh_ratio=nondoh_ratio,
+        random_state=random_state
+    )
 
     df = clean_numeric_features(
         df,
