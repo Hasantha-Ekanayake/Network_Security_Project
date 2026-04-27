@@ -6,8 +6,7 @@
 #SBATCH --job-name="NetSec Train"
 #SBATCH --error="./new_logs/job-%j-netsec_train_script.err"
 #SBATCH --output="./new_logs/job-%j-netsec_train_script.output"
-#SBATCH --partition="gpu"
-#SBATCH --gres=gpu:2
+#SBATCH --partition="standard"
 #SBATCH --time=3-00:00:00
 #SBATCH --cpus-per-task=12
 #SBATCH --mem=16G
