@@ -11,3 +11,5 @@ venv/
 .DS_Store
 new_logs/
 results/
+logs/
+data/

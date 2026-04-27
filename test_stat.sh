@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #SBATCH --job-name="Stat AE Test"
-#SBATCH --error="./new_logs/stat_ae_test/job-%j-stat_ae_test.err"
-#SBATCH --output="./new_logs/stat_ae_test/job-%j-stat_ae_test.out"
+#SBATCH --error="./logs/stat_ae_test/job-%j-stat_ae_test.err"
+#SBATCH --output="./logs/stat_ae_test/job-%j-stat_ae_test.out"
 #SBATCH --partition="gpu"
 #SBATCH --gres=gpu:1
 #SBATCH --time=3-00:00:00
@@ -27,7 +27,7 @@ mkdir -p results/stat_ae_test/run_${SLURM_JOB_ID}
 export PYTHONPATH=.
 
 # Change this to the training run directory you want to test
-EXPERIMENT_DIR="results/stat_ae_train/run_12257245"
+EXPERIMENT_DIR="results/stat_ae_train/run_12263455"
 
 python -c "import tensorflow as tf; print('TensorFlow:', tf.__version__); print('GPUs:', tf.config.list_physical_devices('GPU'))"
 

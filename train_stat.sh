@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #SBATCH --job-name="Stat AE Train"
-#SBATCH --error="./new_logs/stat_ae_train/job-%j-stat_ae_train.err"
-#SBATCH --output="./new_logs/stat_ae_train/job-%j-stat_ae_train.out"
+#SBATCH --error="./logs/stat_ae_train/job-%j-stat_ae_train.err"
+#SBATCH --output="./logs/stat_ae_train/job-%j-stat_ae_train.out"
 #SBATCH --partition="gpu"
 #SBATCH --gres=gpu:1
 #SBATCH --time=3-00:00:00
