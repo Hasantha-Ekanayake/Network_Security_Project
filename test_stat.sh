@@ -26,15 +26,15 @@ mkdir -p results/stat_ae_test/run_${SLURM_JOB_ID}
 
 export PYTHONPATH=.
 
-# Change this to the training run directory you want to test
-EXPERIMENT_DIR="results/stat_ae_train/run_12263455"
-
 python -c "import tensorflow as tf; print('TensorFlow:', tf.__version__); print('GPUs:', tf.config.list_physical_devices('GPU'))"
+
+# Change this to the training run directory you want to test
+EXPERIMENT_DIR="results/stat_ae_train/run_12281958"
 
 python analyzer/main_stat_test.py \
     --experiment_dir ${EXPERIMENT_DIR} \
     --model_name best_epoch_model.keras \
-    --batch_size 64
+    --batch_size 128
 
 echo "Testing done" &&
 exit

@@ -28,6 +28,8 @@ export PYTHONPATH=.
 
 python -c "import tensorflow as tf; print('TensorFlow:', tf.__version__); print('GPUs:', tf.config.list_physical_devices('GPU'))"
 
+BATCH_SIZE=128
+
 python analyzer/main_stat_train.py \
     --nondoh ../dataset/CSVs/l1-nondoh.csv \
     --benign ../dataset/CSVs/l2-benign.csv \
@@ -35,10 +37,15 @@ python analyzer/main_stat_train.py \
     --output_dir results/stat_ae_train/run_${SLURM_JOB_ID} \
     --clean_labels NonDoH Benign \
     --epochs 200 \
-    --batch_size 64 \
-    --latent_dim 8 \
+    --batch_size ${BATCH_SIZE} \
+    --latent_dim 16 \
     --random_state 42 \
     --nondoh_ratio 1.0
+
+python analyzer/main_stat_test.py \
+    --experiment_dir results/stat_ae_train/run_${SLURM_JOB_ID} \
+    --model_name best_epoch_model.keras \
+    --batch_size ${BATCH_SIZE}
 
 echo "Training done" &&
 exit
