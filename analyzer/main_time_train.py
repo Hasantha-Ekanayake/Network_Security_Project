@@ -14,6 +14,26 @@ from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger
 from dataset_json import load_dataset
 
 
+def slice_window_dataset(max_data, window_size):
+    return {
+        "X_train": max_data["X_train_max"][:, :window_size, :],
+        "y_train": max_data["y_train"],
+
+        "X_val": max_data["X_val_max"][:, :window_size, :],
+        "y_val": max_data["y_val"],
+
+        "X_test": max_data["X_test_max"][:, :window_size, :],
+        "y_test": max_data["y_test"],
+        "y_test_original": max_data["y_test_original"],
+        "test_flow_ids": max_data["test_flow_ids"],
+
+        "window_size": window_size,
+        "min_window_size": max_data["min_window_size"],
+        "max_window_size": max_data["max_window_size"],
+        "feature_cols": max_data["feature_cols"],
+    }
+
+
 def create_lstm_autoencoder(window_size, num_features=5, latent_dim=16, lstm_units=64, dropout=0.0):
     input_seq = Input(shape=(window_size, num_features), name="input_sequence")
 
@@ -48,23 +68,13 @@ def create_lstm_autoencoder(window_size, num_features=5, latent_dim=16, lstm_uni
     return model
 
 
-def train_one_window_size(args, window_size):
+def train_one_window_size(args, window_size, data):
     print("=" * 80)
     print(f"Training LSTM autoencoder for window_size = {window_size}")
     print("=" * 80)
 
     output_dir = os.path.join(args.output_dir, f"window_{window_size}")
     os.makedirs(output_dir, exist_ok=True)
-
-    data = load_dataset(
-        nondoh_path=args.nondoh,
-        benign_path=args.benign,
-        malicious_path=args.malicious,
-        window_size=window_size,
-        clean_labels=tuple(args.clean_labels),
-        nondoh_ratio=args.nondoh_ratio,
-        random_state=args.random_state,
-    )
 
     split_path = os.path.join(output_dir, "data_split.pkl")
     with open(split_path, "wb") as f:
@@ -146,6 +156,7 @@ def train_one_window_size(args, window_size):
     with open(summary_path, "w") as f:
         json.dump(summary, f, indent=4)
 
+    print(f"Saved data split to: {split_path}")
     print(f"Best val loss for window {window_size}: {best_val_loss}")
     print(f"Best val RMSE for window {window_size}: {np.sqrt(best_val_loss)}")
 
@@ -193,10 +204,38 @@ def main():
     np.random.seed(args.random_state)
     tf.random.set_seed(args.random_state)
 
+    print("=" * 80)
+    print("Loading and preprocessing dataset once")
+    print("=" * 80)
+
+    max_data = load_dataset(
+        nondoh_path=args.nondoh,
+        benign_path=args.benign,
+        malicious_path=args.malicious,
+        min_window_size=args.window_min,
+        max_window_size=args.window_max,
+        clean_labels=tuple(args.clean_labels),
+        nondoh_ratio=args.nondoh_ratio,
+        random_state=args.random_state,
+    )
+
+    max_data_path = os.path.join(args.output_dir, "max_window_data.pkl")
+    with open(max_data_path, "wb") as f:
+        pickle.dump(max_data, f)
+
+    print("Saved max-window dataset to:", max_data_path)
+
     all_summaries = []
 
     for window_size in range(args.window_min, args.window_max + 1):
-        summary = train_one_window_size(args, window_size)
+        data = slice_window_dataset(max_data, window_size)
+
+        print("Window size:", window_size)
+        print("Train:", data["X_train"].shape)
+        print("Val:", data["X_val"].shape)
+        print("Test:", data["X_test"].shape)
+
+        summary = train_one_window_size(args, window_size, data)
         all_summaries.append(summary)
 
     all_summary_path = os.path.join(args.output_dir, "ablation_summary.json")

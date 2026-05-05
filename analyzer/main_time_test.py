@@ -14,7 +14,7 @@ from sklearn.metrics import (
     confusion_matrix,
     classification_report,
     precision_recall_curve,
-    average_precision_score
+    average_precision_score,
 )
 
 
@@ -34,7 +34,7 @@ def plot_roc(y_true, scores, output_path):
     plt.plot([0, 1], [0, 1], linestyle="--")
     plt.xlabel("False Positive Rate")
     plt.ylabel("True Positive Rate")
-    plt.title("ROC Curve")
+    plt.title("Segment-Level ROC Curve")
     plt.legend()
     plt.grid(True)
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
@@ -51,7 +51,7 @@ def plot_precision_recall(y_true, scores, output_path):
     plt.plot(recall, precision, label=f"PR-AUC = {pr_auc:.5f}")
     plt.xlabel("Recall")
     plt.ylabel("Precision")
-    plt.title("Precision-Recall Curve")
+    plt.title("Segment-Level Precision-Recall Curve")
     plt.legend()
     plt.grid(True)
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
@@ -60,9 +60,14 @@ def plot_precision_recall(y_true, scores, output_path):
     return pr_auc
 
 
-def plot_confusion_matrix(cm, output_path, title):
+def plot_confusion_matrix(cm, x_labels, y_labels, output_path, title):
     row_sums = cm.sum(axis=1, keepdims=True)
-    cm_norm = np.divide(cm, row_sums, out=np.zeros_like(cm, dtype=float), where=row_sums != 0)
+    cm_norm = np.divide(
+        cm,
+        row_sums,
+        out=np.zeros_like(cm, dtype=float),
+        where=row_sums != 0,
+    )
 
     plt.figure(figsize=(6, 5))
     plt.imshow(cm_norm, vmin=0, vmax=1, cmap="Blues")
@@ -70,19 +75,41 @@ def plot_confusion_matrix(cm, output_path, title):
     plt.title(title)
     plt.xlabel("Predicted Label")
     plt.ylabel("True Label")
-    plt.xticks([0, 1], ["Clean", "Malicious"])
-    plt.yticks([0, 1], ["Clean", "Malicious"])
+    plt.xticks(range(len(x_labels)), x_labels)
+    plt.yticks(range(len(y_labels)), y_labels)
 
     for i in range(cm.shape[0]):
         for j in range(cm.shape[1]):
             count = cm[i, j]
             pct = cm_norm[i, j] * 100
             color = "white" if cm_norm[i, j] > 0.5 else "black"
-            plt.text(j, i, f"{count}\n({pct:.1f}%)", ha="center", va="center", color=color)
+            plt.text(
+                j,
+                i,
+                f"{count}\n({pct:.1f}%)",
+                ha="center",
+                va="center",
+                color=color,
+            )
 
     plt.colorbar(label="Row-normalized percentage")
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
     plt.close()
+
+
+def build_custom_confusion_matrix(y_original, y_pred):
+    true_labels = list(dict.fromkeys(y_original))
+    pred_labels = ["Clean", "Malicious"]
+
+    cm = np.zeros((len(true_labels), len(pred_labels)), dtype=int)
+
+    for true_label, pred in zip(y_original, y_pred):
+        pred_label = "Malicious" if pred == 1 else "Clean"
+        row = true_labels.index(true_label)
+        col = pred_labels.index(pred_label)
+        cm[row, col] += 1
+
+    return cm, true_labels, pred_labels
 
 
 def aggregate_segments_to_flows(
@@ -92,7 +119,6 @@ def aggregate_segments_to_flows(
     flow_ids,
     y_test_original,
     min_anomaly_fraction=0.30,
-    min_consecutive_anomalies=3,
 ):
     flow_results = {}
 
@@ -105,51 +131,42 @@ def aggregate_segments_to_flows(
         orig_labels = y_test_original[mask]
 
         true_label = int(np.max(labels))
+        true_original = str(orig_labels[0])
 
         anomaly_fraction = float(np.mean(preds))
         max_score = float(np.max(scores))
         mean_score = float(np.mean(scores))
 
-        max_consecutive = 0
-        current = 0
-        for p in preds:
-            if p == 1:
-                current += 1
-                max_consecutive = max(max_consecutive, current)
-            else:
-                current = 0
-
-        flow_pred_fraction = int(anomaly_fraction >= min_anomaly_fraction)
-        flow_pred_consecutive = int(max_consecutive >= min_consecutive_anomalies)
-        flow_pred_combined = int(
-            flow_pred_fraction == 1 or flow_pred_consecutive == 1
-        )
+        flow_pred = int(anomaly_fraction >= min_anomaly_fraction)
 
         flow_results[int(fid)] = {
             "true_label": true_label,
-            "true_original": str(orig_labels[0]),
+            "true_original": true_original,
             "num_segments": int(len(scores)),
             "max_score": max_score,
             "mean_score": mean_score,
             "anomaly_fraction": anomaly_fraction,
-            "max_consecutive_anomalies": int(max_consecutive),
-            "pred_fraction_rule": flow_pred_fraction,
-            "pred_consecutive_rule": flow_pred_consecutive,
-            "pred_combined_rule": flow_pred_combined,
+            "pred_fraction_rule": flow_pred,
         }
 
     return flow_results
 
 
-def flow_results_to_arrays(flow_results, pred_key):
+def flow_results_to_arrays(flow_results):
     y_true = []
     y_pred = []
+    y_original = []
 
     for _, r in flow_results.items():
         y_true.append(r["true_label"])
-        y_pred.append(r[pred_key])
+        y_pred.append(r["pred_fraction_rule"])
+        y_original.append(r["true_original"])
 
-    return np.asarray(y_true), np.asarray(y_pred)
+    return (
+        np.asarray(y_true),
+        np.asarray(y_pred),
+        np.asarray(y_original, dtype=object),
+    )
 
 
 def main():
@@ -159,8 +176,12 @@ def main():
     parser.add_argument("--model_name", default="best_epoch_model.keras")
     parser.add_argument("--batch_size", type=int, default=128)
 
-    parser.add_argument("--min_anomaly_fraction", type=float, default=0.30)
-    parser.add_argument("--min_consecutive_anomalies", type=int, default=3)
+    parser.add_argument(
+        "--min_anomaly_fraction",
+        type=float,
+        default=0.30,
+        help="Flow is malicious if this fraction of its segments are anomalous",
+    )
 
     args = parser.parse_args()
 
@@ -176,18 +197,26 @@ def main():
     y_test = data["y_test"]
     y_test_original = data["y_test_original"]
 
+    # Check how much padding exists
+    padding_mask = np.all(X_test[:, :, :4] == -1, axis=2)  # ignore direction
+    padding_fraction = padding_mask.mean()
+
+    print(f"Padding fraction (all timesteps): {padding_fraction:.4f}")
+
+    # Optional: how many segments are heavily padded
+    per_segment_padding = padding_mask.mean(axis=1)  # fraction per segment
+    print(f"Avg padding per segment: {per_segment_padding.mean():.4f}")
+    print(f"% segments >50% padding: {(per_segment_padding > 0.5).mean():.4f}")
+
     if "test_flow_ids" not in data:
-        raise ValueError(
-            "data_split.pkl does not contain test_flow_ids. "
-            "Update dataset_json.py to preserve flow IDs before testing."
-        )
+        raise ValueError("data_split.pkl does not contain test_flow_ids.")
 
     test_flow_ids = data["test_flow_ids"]
 
     X_test_recon = model.predict(
         X_test,
         batch_size=args.batch_size,
-        verbose=1
+        verbose=1,
     )
 
     segment_rmse = compute_segment_rmse(X_test, X_test_recon)
@@ -198,25 +227,49 @@ def main():
     segment_roc_auc, threshold, best_fpr, best_tpr = plot_roc(
         y_test,
         segment_rmse,
-        roc_path
+        roc_path,
     )
 
     segment_pr_auc = plot_precision_recall(
         y_test,
         segment_rmse,
-        pr_path
+        pr_path,
     )
 
     segment_pred = (segment_rmse > threshold).astype(int)
 
+    # Binary segment-level confusion matrix
     segment_cm = confusion_matrix(y_test, segment_pred)
     segment_cm_path = os.path.join(args.experiment_dir, "segment_confusion_matrix.png")
+
     plot_confusion_matrix(
         segment_cm,
+        ["Clean", "Malicious"],
+        ["Clean", "Malicious"],
         segment_cm_path,
-        title="Segment-Level Confusion Matrix"
+        title="Segment-Level Confusion Matrix",
     )
 
+    # Subclass segment-level confusion matrix
+    segment_custom_cm, segment_true_labels, segment_pred_labels = build_custom_confusion_matrix(
+        y_test_original,
+        segment_pred,
+    )
+
+    segment_custom_cm_path = os.path.join(
+        args.experiment_dir,
+        "segment_custom_confusion_matrix.png",
+    )
+
+    plot_confusion_matrix(
+        segment_custom_cm,
+        segment_pred_labels,
+        segment_true_labels,
+        segment_custom_cm_path,
+        title="Segment-Level Confusion Matrix by True Class",
+    )
+
+    # Flow-level aggregation
     flow_results = aggregate_segments_to_flows(
         segment_scores=segment_rmse,
         segment_preds=segment_pred,
@@ -224,44 +277,37 @@ def main():
         flow_ids=test_flow_ids,
         y_test_original=y_test_original,
         min_anomaly_fraction=args.min_anomaly_fraction,
-        min_consecutive_anomalies=args.min_consecutive_anomalies,
     )
 
-    y_flow_true, y_flow_pred_fraction = flow_results_to_arrays(
-        flow_results,
-        "pred_fraction_rule"
-    )
+    y_flow_true, y_flow_pred, y_flow_original = flow_results_to_arrays(flow_results)
 
-    _, y_flow_pred_consecutive = flow_results_to_arrays(
-        flow_results,
-        "pred_consecutive_rule"
-    )
-
-    _, y_flow_pred_combined = flow_results_to_arrays(
-        flow_results,
-        "pred_combined_rule"
-    )
-
-    flow_cm_fraction = confusion_matrix(y_flow_true, y_flow_pred_fraction)
-    flow_cm_consecutive = confusion_matrix(y_flow_true, y_flow_pred_consecutive)
-    flow_cm_combined = confusion_matrix(y_flow_true, y_flow_pred_combined)
+    flow_cm = confusion_matrix(y_flow_true, y_flow_pred)
+    flow_cm_path = os.path.join(args.experiment_dir, "flow_confusion_matrix_fraction_rule.png")
 
     plot_confusion_matrix(
-        flow_cm_fraction,
-        os.path.join(args.experiment_dir, "flow_confusion_matrix_fraction_rule.png"),
-        title="Flow-Level Confusion Matrix: Fraction Rule"
+        flow_cm,
+        ["Clean", "Malicious"],
+        ["Clean", "Malicious"],
+        flow_cm_path,
+        title="Flow-Level Confusion Matrix: Fraction Rule",
+    )
+
+    flow_custom_cm, flow_true_labels, flow_pred_labels = build_custom_confusion_matrix(
+        y_flow_original,
+        y_flow_pred,
+    )
+
+    flow_custom_cm_path = os.path.join(
+        args.experiment_dir,
+        "flow_custom_confusion_matrix_fraction_rule.png",
     )
 
     plot_confusion_matrix(
-        flow_cm_consecutive,
-        os.path.join(args.experiment_dir, "flow_confusion_matrix_consecutive_rule.png"),
-        title="Flow-Level Confusion Matrix: Consecutive Rule"
-    )
-
-    plot_confusion_matrix(
-        flow_cm_combined,
-        os.path.join(args.experiment_dir, "flow_confusion_matrix_combined_rule.png"),
-        title="Flow-Level Confusion Matrix: Combined Rule"
+        flow_custom_cm,
+        flow_pred_labels,
+        flow_true_labels,
+        flow_custom_cm_path,
+        title="Flow-Level Confusion Matrix by True Class",
     )
 
     segment_report = classification_report(
@@ -269,31 +315,15 @@ def main():
         segment_pred,
         target_names=["Clean", "Malicious"],
         digits=5,
-        output_dict=True
+        output_dict=True,
     )
 
-    flow_report_fraction = classification_report(
+    flow_report = classification_report(
         y_flow_true,
-        y_flow_pred_fraction,
+        y_flow_pred,
         target_names=["Clean", "Malicious"],
         digits=5,
-        output_dict=True
-    )
-
-    flow_report_consecutive = classification_report(
-        y_flow_true,
-        y_flow_pred_consecutive,
-        target_names=["Clean", "Malicious"],
-        digits=5,
-        output_dict=True
-    )
-
-    flow_report_combined = classification_report(
-        y_flow_true,
-        y_flow_pred_combined,
-        target_names=["Clean", "Malicious"],
-        digits=5,
-        output_dict=True
+        output_dict=True,
     )
 
     metrics = {
@@ -306,27 +336,19 @@ def main():
             "best_fpr_from_roc": float(best_fpr),
             "best_tpr_from_roc": float(best_tpr),
             "confusion_matrix": segment_cm.tolist(),
+            "custom_confusion_matrix": segment_custom_cm.tolist(),
+            "custom_confusion_matrix_true_labels": segment_true_labels,
+            "custom_confusion_matrix_pred_labels": segment_pred_labels,
             "classification_report": segment_report,
         },
 
         "flow_level": {
             "min_anomaly_fraction": float(args.min_anomaly_fraction),
-            "min_consecutive_anomalies": int(args.min_consecutive_anomalies),
-
-            "fraction_rule": {
-                "confusion_matrix": flow_cm_fraction.tolist(),
-                "classification_report": flow_report_fraction,
-            },
-
-            "consecutive_rule": {
-                "confusion_matrix": flow_cm_consecutive.tolist(),
-                "classification_report": flow_report_consecutive,
-            },
-
-            "combined_rule": {
-                "confusion_matrix": flow_cm_combined.tolist(),
-                "classification_report": flow_report_combined,
-            },
+            "confusion_matrix": flow_cm.tolist(),
+            "custom_confusion_matrix": flow_custom_cm.tolist(),
+            "custom_confusion_matrix_true_labels": flow_true_labels,
+            "custom_confusion_matrix_pred_labels": flow_pred_labels,
+            "classification_report": flow_report,
         },
 
         "flow_results": flow_results,
@@ -336,20 +358,16 @@ def main():
     with open(metrics_path, "w") as f:
         json.dump(metrics, f, indent=4)
 
+    print("Window size:", data["window_size"])
     print("Segment threshold RMSE:", threshold)
     print("Segment ROC-AUC:", segment_roc_auc)
     print("Segment PR-AUC:", segment_pr_auc)
+
     print("\nSegment-level report:")
     print(classification_report(y_test, segment_pred, target_names=["Clean", "Malicious"], digits=5))
 
     print("\nFlow-level report: fraction rule")
-    print(classification_report(y_flow_true, y_flow_pred_fraction, target_names=["Clean", "Malicious"], digits=5))
-
-    print("\nFlow-level report: consecutive rule")
-    print(classification_report(y_flow_true, y_flow_pred_consecutive, target_names=["Clean", "Malicious"], digits=5))
-
-    print("\nFlow-level report: combined rule")
-    print(classification_report(y_flow_true, y_flow_pred_combined, target_names=["Clean", "Malicious"], digits=5))
+    print(classification_report(y_flow_true, y_flow_pred, target_names=["Clean", "Malicious"], digits=5))
 
     print("Saved metrics to:", metrics_path)
 

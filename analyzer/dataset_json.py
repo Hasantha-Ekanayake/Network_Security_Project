@@ -1,8 +1,9 @@
 # dataset_json.py
 
 import gzip
-import json
 import math
+import pickle
+import os
 import numpy as np
 import ijson
 
@@ -34,15 +35,6 @@ def load_json_flows(path):
 
 
 def normalize_clump(c):
-    """
-    Expected input order:
-        c[0] = interarrival
-        c[1] = duration
-        c[2] = size
-        c[3] = pktCount
-        c[4] = direction
-    """
-
     interarrival = c[0]
     duration = c[1]
     size = c[2]
@@ -58,35 +50,69 @@ def normalize_clump(c):
     ]
 
 
-def create_segments_from_flow(flow, window_size):
-    clumps = [normalize_clump(c) for c in flow]
+def normalize_flow(flow):
+    return [normalize_clump(c) for c in flow]
 
-    while len(clumps) < window_size:
+
+def create_segments_from_normalized_flow(norm_flow, min_window_size, max_window_size):
+    clumps = list(norm_flow)
+    original_len = len(clumps)
+
+    # Pad enough so the smallest window can slide to the end,
+    # while each stored segment still has max_window_size length.
+    padded_len = max(
+        original_len + max_window_size - min_window_size,
+        max_window_size,
+    )
+
+    while len(clumps) < padded_len:
         clumps.append([-1, -1, -1, -1, 0])
 
-    segments = []
+    num_starts = max(1, original_len - min_window_size + 1)
 
-    for start in range(0, len(clumps) - window_size + 1):
-        window = clumps[start:start + window_size]
-        segments.append(window)
+    segments = []
+    for start in range(num_starts):
+        segments.append(clumps[start:start + max_window_size])
 
     return segments
 
-def flows_to_segments(flows, window_size, start_flow_id=0):
+
+def flows_to_max_segments(
+    normalized_flows,
+    min_window_size,
+    max_window_size,
+    start_flow_id=0,
+    flow_labels=None,
+):
     segments = []
     flow_ids = []
+    segment_labels = []
 
-    for local_id, flow in enumerate(flows):
+    for local_id, flow in enumerate(normalized_flows):
         global_flow_id = start_flow_id + local_id
-        flow_segments = create_segments_from_flow(flow, window_size)
+
+        flow_segments = create_segments_from_normalized_flow(
+            flow,
+            min_window_size=min_window_size,
+            max_window_size=max_window_size,
+        )
 
         segments.extend(flow_segments)
         flow_ids.extend([global_flow_id] * len(flow_segments))
 
-    return (
+        if flow_labels is not None:
+            segment_labels.extend([flow_labels[local_id]] * len(flow_segments))
+
+    outputs = [
         np.asarray(segments, dtype=np.float32),
-        np.asarray(flow_ids, dtype=int)
-    )
+        np.asarray(flow_ids, dtype=int),
+    ]
+
+    if flow_labels is not None:
+        outputs.append(np.asarray(segment_labels, dtype=object))
+
+    return tuple(outputs)
+
 
 def load_three_json_files(
     nondoh_path,
@@ -117,17 +143,14 @@ def load_three_json_files(
     return all_flows
 
 
-def create_autoencoder_splits(
+def create_flow_splits(
     all_flows,
-    window_size,
     clean_labels=("NonDoH", "Benign"),
     anomaly_label="Malicious",
     val_size_clean=0.15,
     test_size_clean=0.15,
     random_state=42,
 ):
-    rng = np.random.RandomState(random_state)
-
     clean_flows = [(f, y) for f, y in all_flows if y in clean_labels]
     anomaly_flows = [(f, y) for f, y in all_flows if y == anomaly_label]
 
@@ -135,10 +158,8 @@ def create_autoencoder_splits(
     clean_y = [y for _, y in clean_flows]
 
     anomaly_X = [f for f, _ in anomaly_flows]
-    anomaly_y = [y for _, y in anomaly_flows]
 
     temp_size = val_size_clean + test_size_clean
-
     stratify_arg = clean_y if len(set(clean_y)) > 1 else None
 
     X_train_flows, X_temp_flows, y_train_orig, y_temp_orig = train_test_split(
@@ -162,72 +183,134 @@ def create_autoencoder_splits(
         stratify=stratify_temp,
     )
 
-    X_train, train_flow_ids = flows_to_segments(X_train_flows, window_size, start_flow_id=0)
-    X_val, val_flow_ids = flows_to_segments(X_val_flows, window_size, start_flow_id=0)
+    return {
+        "train_flows": X_train_flows,
+        "val_flows": X_val_flows,
+        "clean_test_flows": X_clean_test_flows,
+        "clean_test_labels": y_clean_test_orig,
+        "anomaly_flows": anomaly_X,
+    }
 
-    X_clean_test, clean_test_flow_ids = flows_to_segments(
-        X_clean_test_flows,
-        window_size,
-        start_flow_id=0
+
+def normalize_flow_splits(flow_splits):
+    return {
+        "train_flows": [normalize_flow(f) for f in flow_splits["train_flows"]],
+        "val_flows": [normalize_flow(f) for f in flow_splits["val_flows"]],
+        "clean_test_flows": [normalize_flow(f) for f in flow_splits["clean_test_flows"]],
+        "clean_test_labels": flow_splits["clean_test_labels"],
+        "anomaly_flows": [normalize_flow(f) for f in flow_splits["anomaly_flows"]],
+    }
+
+
+def create_max_window_dataset(
+    normalized_splits,
+    min_window_size,
+    max_window_size,
+    anomaly_label="Malicious",
+    random_state=42,
+):
+    rng = np.random.RandomState(random_state)
+
+    X_train_max, train_flow_ids = flows_to_max_segments(
+        normalized_splits["train_flows"],
+        min_window_size=min_window_size,
+        max_window_size=max_window_size,
+        start_flow_id=0,
     )
 
-    X_anomaly_all, anomaly_all_flow_ids = flows_to_segments(
-        anomaly_X,
-        window_size,
-        start_flow_id=len(X_clean_test_flows)
+    X_val_max, val_flow_ids = flows_to_max_segments(
+        normalized_splits["val_flows"],
+        min_window_size=min_window_size,
+        max_window_size=max_window_size,
+        start_flow_id=0,
     )
 
-    num_anomaly_test = min(len(X_clean_test), len(X_anomaly_all))
-    anomaly_idx = rng.choice(len(X_anomaly_all), size=num_anomaly_test, replace=False)
-    X_anomaly_test = X_anomaly_all[anomaly_idx]
+    X_clean_test_max, clean_test_flow_ids, clean_test_segment_labels = flows_to_max_segments(
+        normalized_splits["clean_test_flows"],
+        min_window_size=min_window_size,
+        max_window_size=max_window_size,
+        start_flow_id=0,
+        flow_labels=normalized_splits["clean_test_labels"],
+    )
+
+    X_anomaly_all_max, anomaly_all_flow_ids = flows_to_max_segments(
+        normalized_splits["anomaly_flows"],
+        min_window_size=min_window_size,
+        max_window_size=max_window_size,
+        start_flow_id=len(normalized_splits["clean_test_flows"]),
+    )
+
+    num_anomaly_test = min(len(X_clean_test_max), len(X_anomaly_all_max))
+
+    anomaly_idx = rng.choice(
+        len(X_anomaly_all_max),
+        size=num_anomaly_test,
+        replace=False,
+    )
+
+    X_anomaly_test_max = X_anomaly_all_max[anomaly_idx]
     anomaly_test_flow_ids = anomaly_all_flow_ids[anomaly_idx]
 
-    X_test = np.concatenate([X_clean_test, X_anomaly_test], axis=0)
-    test_flow_ids = np.concatenate([clean_test_flow_ids, anomaly_test_flow_ids], axis=0)
+    X_test_max = np.concatenate([X_clean_test_max, X_anomaly_test_max], axis=0)
 
-    y_train = np.zeros(len(X_train), dtype=int)
-    y_val = np.zeros(len(X_val), dtype=int)
+    y_train = np.zeros(len(X_train_max), dtype=int)
+    y_val = np.zeros(len(X_val_max), dtype=int)
 
-    y_clean_test = np.zeros(len(X_clean_test), dtype=int)
-    y_anomaly_test = np.ones(len(X_anomaly_test), dtype=int)
+    y_clean_test = np.zeros(len(X_clean_test_max), dtype=int)
+    y_anomaly_test = np.ones(len(X_anomaly_test_max), dtype=int)
     y_test = np.concatenate([y_clean_test, y_anomaly_test], axis=0)
 
-    y_clean_test_orig = np.array(["Clean"] * len(X_clean_test), dtype=object)
-    y_anomaly_test_orig = np.array([anomaly_label] * len(X_anomaly_test), dtype=object)
+    # Now preserves clean subclass labels: NonDoH / Benign / Malicious
+    y_clean_test_orig = clean_test_segment_labels
+    y_anomaly_test_orig = np.array([anomaly_label] * len(X_anomaly_test_max), dtype=object)
     y_test_original = np.concatenate([y_clean_test_orig, y_anomaly_test_orig], axis=0)
 
-    perm = rng.permutation(len(X_test))
-    X_test = X_test[perm]
+    test_flow_ids = np.concatenate(
+        [clean_test_flow_ids, anomaly_test_flow_ids],
+        axis=0,
+    )
+
+    perm = rng.permutation(len(X_test_max))
+
+    X_test_max = X_test_max[perm]
     y_test = y_test[perm]
-    test_flow_ids = test_flow_ids[perm]
     y_test_original = y_test_original[perm]
+    test_flow_ids = test_flow_ids[perm]
 
     return {
-        "X_train": X_train,
+        "X_train_max": X_train_max,
         "y_train": y_train,
 
-        "X_val": X_val,
+        "X_val_max": X_val_max,
         "y_val": y_val,
 
-        "X_test": X_test,
+        "X_test_max": X_test_max,
         "y_test": y_test,
         "y_test_original": y_test_original,
         "test_flow_ids": test_flow_ids,
 
-        "window_size": window_size,
+        "max_window_size": max_window_size,
+        "min_window_size": min_window_size,
         "feature_cols": CLUMP_FEATURES_5,
     }
 
 
-def load_dataset(
+def load_max_window_dataset(
     nondoh_path,
     benign_path,
     malicious_path,
-    window_size,
+    min_window_size,
+    max_window_size,
     clean_labels=("NonDoH", "Benign"),
     nondoh_ratio=None,
     random_state=42,
+    cache_path=None,
 ):
+    if cache_path is not None and os.path.exists(cache_path):
+        print("Using cached max-window dataset:", cache_path)
+        with open(cache_path, "rb") as f:
+            return pickle.load(f)
+
     all_flows = load_three_json_files(
         nondoh_path=nondoh_path,
         benign_path=benign_path,
@@ -236,18 +319,58 @@ def load_dataset(
         random_state=random_state,
     )
 
-    data = create_autoencoder_splits(
+    flow_splits = create_flow_splits(
         all_flows=all_flows,
-        window_size=window_size,
         clean_labels=clean_labels,
         random_state=random_state,
     )
 
-    print("Window size:", window_size)
-    print("Train:", data["X_train"].shape)
-    print("Val:", data["X_val"].shape)
-    print("Test:", data["X_test"].shape)
-    print("Test clean:", np.sum(data["y_test"] == 0))
-    print("Test malicious:", np.sum(data["y_test"] == 1))
+    normalized_splits = normalize_flow_splits(flow_splits)
 
-    return data
+    max_data = create_max_window_dataset(
+        normalized_splits=normalized_splits,
+        min_window_size=min_window_size,
+        max_window_size=max_window_size,
+        random_state=random_state,
+    )
+
+    if cache_path is not None:
+        with open(cache_path, "wb") as f:
+            pickle.dump(max_data, f)
+
+    print("Min window size:", min_window_size)
+    print("Max window size:", max_window_size)
+    print("Train max:", max_data["X_train_max"].shape)
+    print("Val max:", max_data["X_val_max"].shape)
+    print("Test max:", max_data["X_test_max"].shape)
+    print("Test clean:", np.sum(max_data["y_test"] == 0))
+    print("Test malicious:", np.sum(max_data["y_test"] == 1))
+
+    unique, counts = np.unique(max_data["y_test_original"], return_counts=True)
+    print("Test original label counts:", dict(zip(unique, counts)))
+
+    return max_data
+
+
+def load_dataset(
+    nondoh_path,
+    benign_path,
+    malicious_path,
+    min_window_size,
+    max_window_size,
+    clean_labels=("NonDoH", "Benign"),
+    nondoh_ratio=None,
+    random_state=42,
+):
+    max_data = load_max_window_dataset(
+        nondoh_path=nondoh_path,
+        benign_path=benign_path,
+        malicious_path=malicious_path,
+        min_window_size=min_window_size,
+        max_window_size=max_window_size,
+        clean_labels=clean_labels,
+        nondoh_ratio=nondoh_ratio,
+        random_state=random_state,
+    )
+
+    return max_data

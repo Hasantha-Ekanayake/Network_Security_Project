@@ -7,7 +7,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --time=3-00:00:00
 #SBATCH --cpus-per-task=12
-#SBATCH --mem=32G
+#SBATCH --mem=64G
 #SBATCH --ntasks=1
 #SBATCH --account="hplp"
 
@@ -29,14 +29,13 @@ export PYTHONPATH=.
 python -c "import tensorflow as tf; print('TensorFlow:', tf.__version__); print('GPUs:', tf.config.list_physical_devices('GPU'))"
 
 # Change this to the training job id you want to test
-TRAIN_JOB_ID=12263455
+TRAIN_JOB_ID=12529401
 
-for w in 4 5 6 7 8 9 10; do
+for w in 4 5 6 7; do
     python analyzer/main_time_test.py \
         --experiment_dir results/time_ae_train/run_${TRAIN_JOB_ID}/window_${w} \
         --batch_size 128 \
-        --min_anomaly_fraction 0.30 \
-        --min_consecutive_anomalies 3
+        --min_anomaly_fraction 0.95
 done
 
 echo "Testing done" &&

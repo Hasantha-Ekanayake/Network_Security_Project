@@ -6,8 +6,8 @@
 #SBATCH --partition="gpu"
 #SBATCH --gres=gpu:1
 #SBATCH --time=3-00:00:00
-#SBATCH --cpus-per-task=12
-#SBATCH --mem=32G
+#SBATCH --cpus-per-task=24
+#SBATCH --mem=256G
 #SBATCH --ntasks=1
 #SBATCH --account="hplp"
 
@@ -37,20 +37,19 @@ python analyzer/main_time_train.py \
     --output_dir results/time_ae_train/run_${SLURM_JOB_ID} \
     --clean_labels NonDoH Benign \
     --window_min 4 \
-    --window_max 10 \
+    --window_max 8 \
     --epochs 200 \
     --batch_size ${BATCH_SIZE} \
-    --latent_dim 16 \
+    --latent_dim 4 \
     --random_state 42 \
-    --nondoh_ratio 1.0 \
-    --lstm_units 64
+    --lstm_units 16 \
+    --patience 20
 
-for w in 4 5 6 7 8 9 10; do
+for w in 4 5 6 7 8; do
     python analyzer/main_time_test.py \
         --experiment_dir results/time_ae_train/run_${SLURM_JOB_ID}/window_${w} \
         --batch_size ${BATCH_SIZE} \
-        --min_anomaly_fraction 0.30 \
-        --min_consecutive_anomalies 3
+        --min_anomaly_fraction 0.95
 done
 
 echo "Training done" &&
