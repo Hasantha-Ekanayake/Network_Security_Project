@@ -31,9 +31,9 @@ python -c "import tensorflow as tf; print('TensorFlow:', tf.__version__); print(
 BATCH_SIZE=128
 
 python analyzer/main_stat_train.py \
-    --nondoh ../dataset/CSVs/l1-nondoh.csv \
-    --benign ../dataset/CSVs/l2-benign.csv \
-    --malicious ../dataset/CSVs/l2-malicious.csv \
+    --nondoh processed_data/statistical/non_doh.csv \
+    --benign processed_data/statistical/benign_doh.csv \
+    --malicious processed_data/statistical/malicious_doh.csv \
     --output_dir results/stat_ae_train/run_${SLURM_JOB_ID} \
     --clean_labels NonDoH Benign \
     --epochs 200 \

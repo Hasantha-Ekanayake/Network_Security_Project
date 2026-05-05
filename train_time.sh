@@ -31,9 +31,9 @@ python -c "import tensorflow as tf; print('TensorFlow:', tf.__version__); print(
 BATCH_SIZE=128
 
 python analyzer/main_time_train.py \
-    --nondoh data/final/ndoh.json \
-    --benign data/final/benign_doh.json \
-    --malicious data/final/malicious_doh.json \
+    --nondoh processed_data/time_series/non_doh.json \
+    --benign processed_data/time_series/benign_doh.json \
+    --malicious processed_data/time_series/malicious_doh.json \
     --output_dir results/time_ae_train/run_${SLURM_JOB_ID} \
     --clean_labels NonDoH Benign \
     --window_min 4 \

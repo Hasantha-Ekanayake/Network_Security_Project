@@ -162,8 +162,8 @@ def create_autoencoder_splits(
         stratify=stratify_temp,
     )
 
-    X_train = flows_to_segments(X_train_flows, window_size)
-    X_val = flows_to_segments(X_val_flows, window_size)
+    X_train, train_flow_ids = flows_to_segments(X_train_flows, window_size, start_flow_id=0)
+    X_val, val_flow_ids = flows_to_segments(X_val_flows, window_size, start_flow_id=0)
 
     X_clean_test, clean_test_flow_ids = flows_to_segments(
         X_clean_test_flows,
