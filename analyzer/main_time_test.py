@@ -59,6 +59,45 @@ def plot_precision_recall(y_true, scores, output_path):
 
     return pr_auc
 
+def plot_rmse_histogram_by_class(y_true, scores, output_path):
+    plt.figure(figsize=(8, 5))
+
+    clean_scores = scores[y_true == 0]
+    malicious_scores = scores[y_true == 1]
+
+    plt.hist(clean_scores, bins=100, alpha=0.5, density=True, label="Clean")
+    plt.hist(malicious_scores, bins=100, alpha=0.5, density=True, label="Malicious")
+
+    plt.xlabel("Segment Reconstruction RMSE")
+    plt.ylabel("Density")
+    plt.title("Segment RMSE Distribution")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+    plt.close()
+
+
+def plot_rmse_histogram_by_subclass(y_original, scores, output_path):
+    plt.figure(figsize=(8, 5))
+
+    for label in sorted(set(y_original)):
+        mask = y_original == label
+        plt.hist(
+            scores[mask],
+            bins=100,
+            alpha=0.5,
+            density=True,
+            label=label,
+        )
+
+    plt.xlabel("Segment Reconstruction RMSE")
+    plt.ylabel("Density")
+    plt.title("Segment RMSE Distribution by True Class")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+    plt.close()
+
 
 def plot_confusion_matrix(cm, x_labels, y_labels, output_path, title):
     row_sums = cm.sum(axis=1, keepdims=True)
@@ -220,6 +259,35 @@ def main():
     )
 
     segment_rmse = compute_segment_rmse(X_test, X_test_recon)
+
+    rmse_binary_path = os.path.join(args.experiment_dir, "segment_rmse_distribution_binary.png")
+    rmse_subclass_path = os.path.join(args.experiment_dir, "segment_rmse_distribution_subclass.png")
+
+    plot_rmse_histogram_by_class(
+        y_test,
+        segment_rmse,
+        rmse_binary_path,
+    )
+
+    plot_rmse_histogram_by_subclass(
+        y_test_original,
+        segment_rmse,
+        rmse_subclass_path,
+    )
+
+    print("\nSegment RMSE statistics:")
+    for label in sorted(set(y_test_original)):
+        mask = y_test_original == label
+        scores = segment_rmse[mask]
+
+        print(f"\n{label}")
+        print(f"  count : {len(scores)}")
+        print(f"  mean  : {np.mean(scores):.6f}")
+        print(f"  median: {np.median(scores):.6f}")
+        print(f"  std   : {np.std(scores):.6f}")
+        print(f"  p90   : {np.percentile(scores, 90):.6f}")
+        print(f"  p95   : {np.percentile(scores, 95):.6f}")
+        print(f"  p99   : {np.percentile(scores, 99):.6f}")
 
     roc_path = os.path.join(args.experiment_dir, "segment_roc_curve.png")
     pr_path = os.path.join(args.experiment_dir, "segment_precision_recall_curve.png")

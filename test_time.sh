@@ -31,7 +31,7 @@ python -c "import tensorflow as tf; print('TensorFlow:', tf.__version__); print(
 # Change this to the training job id you want to test
 TRAIN_JOB_ID=12529401
 
-for w in 4 5 6 7; do
+for w in 4 5 6 7 8; do
     python analyzer/main_time_test.py \
         --experiment_dir results/time_ae_train/run_${TRAIN_JOB_ID}/window_${w} \
         --batch_size 128 \
