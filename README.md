@@ -34,3 +34,10 @@ The workflow consists of:
 ## Citation
 
 If you use this repository, please cite the original DoHlyzer paper, the dataset, DoHlyzer, and this repository.
+
+## Project Team members
+
+* **Kavish Ranawella:** Conducted the literature review, designed and implemented the autoencoder models, and contributed to result generation and analysis.  
+* **Hasantha Ekanayake:** Conducted the literature review, performed dataset preprocessing, and contributed to result generation and analysis.
+
+
