@@ -8,15 +8,7 @@ This repository builds on DoHlyzer to detect anomalies in encrypted DNS-over-HTT
 - `analyzer/` — trains and tests autoencoder models.
 - `visualizer/` — visualizes extracted clump/time-series features.
 - `Kitsune/` — additional anomaly detection baseline/resources.
-- `train.sh` — general autoencoder training script.
-- `train_stat.sh` — trains the statistical-feature autoencoder.
-- `train_time.sh` — trains the time-series-feature autoencoder.
-- `test_stat.sh` — tests the statistical-feature autoencoder.
-- `test_time.sh` — tests the time-series-feature autoencoder.
-- `create_json.sh` — creates JSON clump files.
-- `create_json_mal.sh` — creates JSON files for malicious traffic.
-- `requirements.txt` — original DoHlyzer dependencies.
-- `requirement_new.txt` — updated dependencies for the autoencoder implementation.
+
 
 ## Dataset
 
