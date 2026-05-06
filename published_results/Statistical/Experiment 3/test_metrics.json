@@ -1,0 +1,58 @@
+{
+    "threshold_rmse": 0.1887899786233902,
+    "roc_auc": 0.9548273175277576,
+    "pr_auc": 0.9407013148217318,
+    "best_fpr_from_roc": 0.09858203916272788,
+    "best_tpr_from_roc": 0.9277515192437542,
+    "tn": 2670,
+    "fp": 292,
+    "fn": 215,
+    "tp": 2747,
+    "false_positive_rate": 0.09858203916272788,
+    "false_negative_rate": 0.07258609047940581,
+    "custom_confusion_matrix": [
+        [
+            2670,
+            292
+        ],
+        [
+            215,
+            2747
+        ]
+    ],
+    "custom_confusion_matrix_true_labels": [
+        "Benign",
+        "Malicious"
+    ],
+    "custom_confusion_matrix_pred_labels": [
+        "Clean",
+        "Malicious"
+    ],
+    "classification_report": {
+        "Clean": {
+            "precision": 0.925476603119584,
+            "recall": 0.9014179608372721,
+            "f1-score": 0.9132888660851719,
+            "support": 2962
+        },
+        "Malicious": {
+            "precision": 0.9039157617637381,
+            "recall": 0.9274139095205942,
+            "f1-score": 0.9155140809865023,
+            "support": 2962
+        },
+        "accuracy": 0.9144159351789332,
+        "macro avg": {
+            "precision": 0.9146961824416611,
+            "recall": 0.9144159351789332,
+            "f1-score": 0.9144014735358371,
+            "support": 5924
+        },
+        "weighted avg": {
+            "precision": 0.9146961824416611,
+            "recall": 0.9144159351789332,
+            "f1-score": 0.9144014735358371,
+            "support": 5924
+        }
+    }
+}

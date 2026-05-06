@@ -1,0 +1,58 @@
+{
+    "threshold_rmse": 0.25563356280326843,
+    "roc_auc": 0.7402964187237739,
+    "pr_auc": 0.7802172707894959,
+    "best_fpr_from_roc": 0.0661689854088904,
+    "best_tpr_from_roc": 0.4163556158805565,
+    "tn": 2752,
+    "fp": 195,
+    "fn": 1721,
+    "tp": 1226,
+    "false_positive_rate": 0.0661689854088904,
+    "false_negative_rate": 0.5839837122497455,
+    "custom_confusion_matrix": [
+        [
+            1721,
+            1226
+        ],
+        [
+            2752,
+            195
+        ]
+    ],
+    "custom_confusion_matrix_true_labels": [
+        "Malicious",
+        "NonDoH"
+    ],
+    "custom_confusion_matrix_pred_labels": [
+        "Clean",
+        "Malicious"
+    ],
+    "classification_report": {
+        "Clean": {
+            "precision": 0.6152470377822491,
+            "recall": 0.9338310145911096,
+            "f1-score": 0.74177897574124,
+            "support": 2947
+        },
+        "Malicious": {
+            "precision": 0.8627726952850105,
+            "recall": 0.4160162877502545,
+            "f1-score": 0.5613553113553114,
+            "support": 2947
+        },
+        "accuracy": 0.6749236511706821,
+        "macro avg": {
+            "precision": 0.7390098665336298,
+            "recall": 0.6749236511706821,
+            "f1-score": 0.6515671435482757,
+            "support": 5894
+        },
+        "weighted avg": {
+            "precision": 0.7390098665336299,
+            "recall": 0.6749236511706821,
+            "f1-score": 0.6515671435482757,
+            "support": 5894
+        }
+    }
+}
