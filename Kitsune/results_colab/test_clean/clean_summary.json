@@ -1,0 +1,13 @@
+{
+    "label": "clean",
+    "pcap": "/content/dump_00002_20200113162614.pcap",
+    "num_packets": 1200000,
+    "buffer_packets": 1000,
+    "threshold": 0.11595988820485163,
+    "anomaly_fraction_after_buffer": 0.02554628857381151,
+    "elapsed_sec": 16039.24439907074,
+    "rmse_mean": 1.5397404065041784,
+    "rmse_median": 0.009947521049701098,
+    "rmse_p95": 0.11151616650731667,
+    "rmse_p99": 0.11991416977645657
+}

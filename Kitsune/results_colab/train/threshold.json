@@ -1,0 +1,10 @@
+{
+    "threshold_rmse": 0.11595988820485163,
+    "threshold_percentile": 99.0,
+    "num_threshold_samples": 359063,
+    "fm_grace": 30000,
+    "ad_grace": 800000,
+    "packet_limit": 1200000,
+    "detector_attr": "AnomDetector",
+    "detector_path": "/content/drive/MyDrive/kitsune_exp/train/kitnet_detector_final.pkl"
+}

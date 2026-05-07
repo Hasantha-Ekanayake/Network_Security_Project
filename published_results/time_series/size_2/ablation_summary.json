@@ -1,0 +1,37 @@
+[
+    {
+        "window_size": 4,
+        "best_val_loss": 0.0003686042327899486,
+        "best_val_rmse": 0.019199068539644017,
+        "epochs_trained": 71,
+        "output_dir": "results/time_ae_train/run_12540066/window_4"
+    },
+    {
+        "window_size": 5,
+        "best_val_loss": 0.0009005594183690846,
+        "best_val_rmse": 0.030009322191097296,
+        "epochs_trained": 61,
+        "output_dir": "results/time_ae_train/run_12540066/window_5"
+    },
+    {
+        "window_size": 6,
+        "best_val_loss": 0.0009844516171142459,
+        "best_val_rmse": 0.03137597197082898,
+        "epochs_trained": 90,
+        "output_dir": "results/time_ae_train/run_12540066/window_6"
+    },
+    {
+        "window_size": 7,
+        "best_val_loss": 0.0014987998874858022,
+        "best_val_rmse": 0.03871433697592924,
+        "epochs_trained": 86,
+        "output_dir": "results/time_ae_train/run_12540066/window_7"
+    },
+    {
+        "window_size": 8,
+        "best_val_loss": 0.001638189423829317,
+        "best_val_rmse": 0.04047455279344439,
+        "epochs_trained": 90,
+        "output_dir": "results/time_ae_train/run_12540066/window_8"
+    }
+]

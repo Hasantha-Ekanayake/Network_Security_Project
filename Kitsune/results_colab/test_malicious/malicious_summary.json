@@ -1,0 +1,13 @@
+{
+    "label": "malicious",
+    "pcap": "/content/dns2tcp_tunnel_1111_doh10_2020-03-31T21_54_36.738995.pcap",
+    "num_packets": 4922,
+    "buffer_packets": 1000,
+    "threshold": 0.11595988820485163,
+    "anomaly_fraction_after_buffer": 0.0,
+    "elapsed_sec": 4.500826597213745,
+    "rmse_mean": 0.010863471334965914,
+    "rmse_median": 0.01086981017278341,
+    "rmse_p95": 0.012273513865815894,
+    "rmse_p99": 0.012944789499189464
+}

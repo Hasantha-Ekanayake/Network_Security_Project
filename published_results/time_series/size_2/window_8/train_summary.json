@@ -1,0 +1,7 @@
+{
+    "window_size": 8,
+    "best_val_loss": 0.001638189423829317,
+    "best_val_rmse": 0.04047455279344439,
+    "epochs_trained": 90,
+    "output_dir": "results/time_ae_train/run_12540066/window_8"
+}
